@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>スライドメーカー（安定・互換・完成版）</title>
+  <title>スライドメーカー（データ移動対応版）</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .loader{border:4px solid #f3f3f3;border-top:4px solid #4f46e5;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite}
@@ -22,15 +22,14 @@
     .nav-arrow:hover{color:#6b7280}.nav-arrow.left{left:-2rem}.nav-arrow.right{right:-2rem}
     @media (max-width:640px){.nav-arrow.left{left:-1rem}.nav-arrow.right{right:-1rem}.nav-arrow{font-size:1.75rem}}
     .kbd{border:1px solid #e5e7eb;border-bottom-width:2px;border-radius:.375rem;background:#fff;padding:.125rem .375rem;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:.75rem}
+    .transfer-box { background-color: #f0f9ff; border: 2px dashed #6366f1; }
   </style>
 </head>
 <body class="bg-gray-100 font-sans text-gray-800">
-  <!-- 通知 -->
   <div id="notification-banner" class="hidden fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-md p-4 mt-4 z-50 rounded-lg shadow-lg" role="alert">
     <p id="notification-message"></p>
   </div>
 
-  <!-- 確認モーダル -->
   <div id="confirm-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
       <p id="confirm-message" class="text-gray-800 mb-6">本当に実行しますか？</p>
@@ -43,16 +42,9 @@
 
   <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
     <div id="app">
-      <!-- ヘッダー -->
       <header class="mb-6">
-        <p class="text-gray-600">JSONデータからスライドを作成し、保存・閲覧できます（安定保存＋旧ID互換）。</p>
-        <div id="auth-status" class="mt-2 text-xs text-gray-500">
-          <p>ステータス: 初期化中...</p>
-          <p>UserKey: <span id="user-id-display">未認証</span></p>
-        </div>
-        <div class="mt-2 text-xs text-gray-500">
-          <p>ヒント: <span class="kbd">Ctrl/⌘+S</span> で保存、<span class="kbd">Ctrl/⌘+L</span> でロード</p>
-        </div>
+        <h1 class="text-2xl font-bold text-indigo-700 mb-2">スライドメーカー <span class="text-sm font-normal text-gray-500">（PCで作ってiPadで見る版）</span></h1>
+        <p class="text-gray-600">APIキー不要。PCで作ったデータをテキストコピーしてiPadに移せます。</p>
         <div class="mt-4 border-b border-gray-200">
           <nav class="flex -mb-px space-x-6" aria-label="Tabs">
             <button id="tab-editor" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600">作成 / 編集モード</button>
@@ -62,60 +54,73 @@
       </header>
 
       <main>
-        <!-- 編集モード画面 -->
         <div id="editor-view" class="view-container">
           <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
-            <!-- 左パネル：入力／保存操作 -->
-            <div class="bg-white p-6 rounded-xl shadow-md space-y-6 lg:col-span-2">
+            <div class="bg-white p-6 rounded-xl shadow-md space-y-8 lg:col-span-2">
+              
               <div>
-                <h2 class="text-xl font-semibold mb-3">1. スライドデータの準備</h2>
-                <p class="text-sm text-gray-600 mb-2">GPTsを使って文章からスライド用のJSONを生成できます。</p>
-                <a href="https://chatgpt.com/g/g-68eb6abcec308191aa86a0bb98f47865-suraitojson" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:text-indigo-800 underline font-medium">テキスト → JSON GPTs</a>
+                <h2 class="text-lg font-bold mb-2 flex items-center gap-2">
+                  <span class="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-full">Step 1</span>
+                  データを取り込む
+                </h2>
+                <label for="json-input" class="block text-sm text-gray-600 mb-2">GPTsの出力や、PCから送ったデータをここに貼り付けます。</label>
+                <textarea id="json-input" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition text-xs" placeholder='ここにデータを貼り付け...'></textarea>
+                <button id="import-json-btn" class="mt-2 w-full bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-600 transition shadow">データを読み込む</button>
               </div>
+
+              <hr class="border-gray-200">
 
               <div>
-                <label for="json-input" class="block text-lg font-semibold mb-2">2. JSONデータを貼り付け</label>
-                <textarea id="json-input" rows="8" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition" placeholder='[{"text_content": "スライド文章", "image_url": "画像URL"}, ...]'></textarea>
-                <button id="import-json-btn" class="mt-3 w-full bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-600 transition shadow">スライドをインポート</button>
+                <h2 class="text-lg font-bold mb-2 flex items-center gap-2">
+                  <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Step 2</span>
+                  このブラウザに保存
+                </h2>
+                <div class="flex flex-col gap-3">
+                  <input type="text" id="slide-name" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition" placeholder="スライド名 (例: 理科クイズ)">
+                  <button id="save-slides-btn" class="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition shadow">保存する</button>
+                </div>
+                
+                <div class="mt-4 bg-gray-50 p-3 rounded-lg">
+                  <label class="block text-xs font-bold text-gray-500 mb-1">保存済みリスト</label>
+                  <select id="saved-files-select" class="w-full p-2 border border-gray-300 rounded mb-2 text-sm bg-white">
+                    <option value="">選択してください...</option>
+                  </select>
+                  <div class="flex gap-2">
+                    <button id="load-slides-btn" class="flex-1 bg-gray-200 text-gray-800 font-bold py-2 px-2 rounded hover:bg-gray-300 transition text-xs">読込</button>
+                    <button id="delete-local-btn" class="flex-1 bg-red-100 text-red-700 font-bold py-2 px-2 rounded hover:bg-red-200 transition text-xs">削除</button>
+                  </div>
+                </div>
               </div>
 
-              <div class="border-t pt-6">
-                <label for="slide-name" class="block text-lg font-semibold mb-2">3. スライド名を設定</label>
-                <div class="flex flex-col sm:flex-row gap-3">
-                  <input type="text" id="slide-name" class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition" placeholder="例: MySlides01">
-                  <button id="load-slides-btn" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition">ロード</button>
-                  <button id="save-slides-btn" class="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition shadow">保存</button>
-                </div>
-                <div id="delete-slide-container" class="mt-4 text-center hidden">
-                  <span id="delete-slide-link" class="text-xs text-red-500 hover:underline cursor-pointer">このスライド（ドキュメント）をゴミ箱に移動</span>
-                </div>
+              <hr class="border-gray-200">
+
+              <div class="transfer-box p-4 rounded-xl">
+                <h2 class="text-lg font-bold mb-2 flex items-center gap-2 text-indigo-700">
+                  <span class="bg-white border border-indigo-200 text-indigo-800 text-xs px-2 py-1 rounded-full">Step 3</span>
+                  iPadへ送る (書き出し)
+                </h2>
+                <p class="text-xs text-gray-600 mb-3">
+                  PCで作ったデータをiPadで使うには、以下のボタンでデータをコピーし、メールやチャットでiPadに送ってください。
+                </p>
+                <button id="export-json-btn" class="w-full bg-white border-2 border-indigo-500 text-indigo-600 font-bold py-3 px-4 rounded-lg hover:bg-indigo-50 transition shadow-sm flex items-center justify-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
+                  データをコピーする
+                </button>
+                <p class="text-[10px] text-gray-400 mt-2 text-center">コピーしたら、iPadでこのアプリを開き、「Step 1」に貼り付けてください。</p>
               </div>
 
-              <!-- デッキ全体の文字サイズ -->
-              <div class="mt-6 border-t pt-6">
-                <label class="block text-lg font-semibold mb-2">閲覧モードの文字サイズ（デッキ共通）</label>
-                <div class="flex flex-wrap gap-2 mb-3" id="viewer-cpl-presets">
-                  <button data-cpl="32" class="px-3 py-1 text-sm border rounded">小さめ</button>
-                  <button data-cpl="25" class="px-3 py-1 text-sm border rounded font-semibold bg-indigo-50 text-indigo-700">標準</button>
-                  <button data-cpl="20" class="px-3 py-1 text-sm border rounded">大きめ</button>
-                  <button data-cpl="16" class="px-3 py-1 text-sm border rounded">特大</button>
-                </div>
+              <div class="mt-6">
+                <label class="block text-sm font-semibold mb-2">文字サイズ設定 (全体)</label>
                 <div class="flex items-center gap-3">
-                  <input id="viewer-cpl-range" type="range" min="15" max="35" step="1" value="25" class="w-48 sm:w-56">
-                  <span class="text-sm text-gray-600 whitespace-nowrap">基準 <span id="viewer-cpl-label">25</span> 文字/行</span>
-                </div>
-                <p class="text-xs text-gray-500 mt-2">※ 小さくすると文字が大きく表示されます。</p>
-
-                <div class="mt-3">
-                  <button id="copy-deck-text-btn" class="px-3 py-1.5 rounded-lg border hover:bg-gray-100">テキストを書き出してコピー</button>
-                  <span class="text-xs text-gray-500 ml-2">（表示せず、クリップボードにコピーします）</span>
+                  <input id="viewer-cpl-range" type="range" min="15" max="35" step="1" value="25" class="w-full">
+                  <span class="text-sm text-gray-600 whitespace-nowrap"><span id="viewer-cpl-label">25</span>文字/行</span>
                 </div>
               </div>
+
             </div>
 
-            <!-- 右パネル：プレビュー／編集 -->
             <div class="bg-white p-6 rounded-xl shadow-md lg:col-span-3">
-              <h2 class="text-xl font-semibold mb-4 text-center">スライド プレビュー & 編集</h2>
+              <h2 class="text-xl font-semibold mb-4 text-center">プレビュー & 編集</h2>
 
               <div class="slide-shell">
                 <span id="editor-prev-arrow" class="nav-arrow left" aria-label="前へ">＜</span>
@@ -126,33 +131,31 @@
               </div>
 
               <div class="mt-4 flex items-center justify-between">
-                <button id="add-slide-btn" class="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 text-sm">＋ スライドの追加</button>
-                <button id="remove-slide-btn" class="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 text-sm">－ スライドの削除</button>
+                <button id="add-slide-btn" class="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 text-sm">＋ スライド追加</button>
+                <button id="remove-slide-btn" class="inline-flex items-center gap-1 px-3 py-2 rounded-md bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 text-sm">－ スライド削除</button>
               </div>
 
               <div id="slide-edit-form" class="mt-4">
                 <div class="space-y-4">
                   <div>
-                    <label for="text-content-input" class="block text-sm font-medium text-gray-700">文章内容</label>
+                    <label for="text-content-input" class="block text-sm font-medium text-gray-700">文章</label>
                     <textarea id="text-content-input" rows="4" class="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"></textarea>
                   </div>
                   <div>
-                    <label for="image-url-input" class="block text-sm font-medium text-gray-700">画像 URL (任意)</label>
+                    <label for="image-url-input" class="block text-sm font-medium text-gray-700">画像 URL <span class="text-xs text-red-500">※PC内の画像はiPadで見れません。Googleドライブ等のURLを使ってください。</span></label>
                     <input type="text" id="image-url-input" class="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="https://...">
                   </div>
                   <div class="pt-2">
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">このスライドだけの文字サイズ（閲覧モード）</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">このスライドの文字調整</label>
                     <div class="flex items-center gap-2">
                       <button id="slide-cpl-up" class="px-2 py-1 text-xs border rounded">▲</button>
                       <button id="slide-cpl-down" class="px-2 py-1 text-xs border rounded">▼</button>
                       <button id="slide-cpl-reset" class="px-2 py-1 text-xs border rounded text-indigo-700">リセット</button>
-                      <span class="text-xs text-gray-600">現在：<span id="slide-cpl-display">—</span>（基準 <span id="deckCplInline">25</span>）</span>
+                      <span class="text-xs text-gray-600">現在：<span id="slide-cpl-display">—</span></span>
                     </div>
-                    <p class="text-[11px] text-gray-500 mt-1">※ ▲で文字を大きく／▼で小さく（CPLで調整）</p>
                   </div>
-
                   <div class="pt-4">
-                    <h3 class="text-sm font-semibold text-gray-700 mb-2">順番変更（ドラッグ／▲▼）</h3>
+                    <h3 class="text-sm font-semibold text-gray-700 mb-2">順番入替</h3>
                     <ul id="reorder-list" class="divide-y divide-gray-200 rounded-lg border border-gray-200 overflow-hidden"></ul>
                   </div>
                 </div>
@@ -161,15 +164,14 @@
           </div>
         </div>
 
-        <!-- 閲覧モード画面 -->
         <div id="viewer-view" class="view-container hidden">
           <div id="viewer-start-screen" class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md text-center">
-            <h2 class="text-2xl font-bold mb-4">スライドを閲覧</h2>
-            <p class="text-gray-600 mb-6">閲覧したいスライド名を入力してください。</p>
-            <div class="flex gap-3">
-              <input type="text" id="viewer-slide-name" class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition" placeholder="例: MySlides01">
-              <button id="start-viewer-btn" class="bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-600 transition shadow">スライドを見る</button>
-            </div>
+            <h2 class="text-2xl font-bold mb-4">スライド閲覧</h2>
+            <p class="text-gray-600 mb-6">保存されたスライドを選んでください。</p>
+            <select id="viewer-file-select" class="w-full p-3 border border-gray-300 rounded-lg mb-4">
+              <option value="">選択してください...</option>
+            </select>
+            <button id="start-viewer-btn" class="w-full bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-600 transition shadow">スタート</button>
           </div>
           <div id="viewer-slide-screen" class="hidden">
             <div class="slide-shell mt-2">
@@ -180,7 +182,7 @@
               </div>
             </div>
             <div class="text-center mt-6">
-              <button id="viewer-back-btn" class="text-sm text-indigo-600 hover:text-indigo-800">別のスライドを閲覧する</button>
+              <button id="viewer-back-btn" class="text-sm text-indigo-600 hover:text-indigo-800">リストに戻る</button>
             </div>
           </div>
         </div>
@@ -189,19 +191,14 @@
     </div>
   </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, query, where, doc, updateDoc, setLogLevel, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    let app, db, auth;
-    let slidesCollection;
+  <script>
+    // LocalStorageベース
     const CPL_MIN = 15, CPL_MAX = 35;
+    const STORAGE_KEY_PREFIX = "slide_maker_data_";
 
     const state = {
       mode: 'editor',
-      userKey: null, // ローカル安定キー（IDには使わない／互換読み込みにのみ使用）
-      editor: { slides: [], currentSlideIndex: -1, slideName: '', loadedDocId: null },
+      editor: { slides: [], currentSlideIndex: -1, slideName: '' },
       viewer: { slides: [], currentSlideIndex: -1, slideName: '' },
       viewerSettings: { cpl: 25, minPx: 18, maxPx: 56 }
     };
@@ -213,8 +210,6 @@
       confirmMessage: document.getElementById('confirm-message'),
       confirmOkBtn: document.getElementById('confirm-ok-btn'),
       confirmCancelBtn: document.getElementById('confirm-cancel-btn'),
-      authStatus: document.getElementById('auth-status'),
-      userIdDisplay: document.getElementById('user-id-display'),
       tabEditor: document.getElementById('tab-editor'),
       tabViewer: document.getElementById('tab-viewer'),
       editorView: document.getElementById('editor-view'),
@@ -222,10 +217,10 @@
       jsonInput: document.getElementById('json-input'),
       importJsonBtn: document.getElementById('import-json-btn'),
       slideNameInput: document.getElementById('slide-name'),
-      loadSlidesBtn: document.getElementById('load-slides-btn'),
       saveSlidesBtn: document.getElementById('save-slides-btn'),
-      deleteSlideContainer: document.getElementById('delete-slide-container'),
-      deleteSlideLink: document.getElementById('delete-slide-link'),
+      loadSlidesBtn: document.getElementById('load-slides-btn'),
+      deleteLocalBtn: document.getElementById('delete-local-btn'),
+      savedFilesSelect: document.getElementById('saved-files-select'),
       addSlideBtn: document.getElementById('add-slide-btn'),
       removeSlideBtn: document.getElementById('remove-slide-btn'),
       editorSlideContainer: document.getElementById('editor-slide-container'),
@@ -237,20 +232,18 @@
       slideCplDown: document.getElementById('slide-cpl-down'),
       slideCplReset: document.getElementById('slide-cpl-reset'),
       slideCplDisplay: document.getElementById('slide-cpl-display'),
-      deckCplInline: document.getElementById('deckCplInline'),
       reorderList: document.getElementById('reorder-list'),
       viewerCplRange: document.getElementById('viewer-cpl-range'),
       viewerCplLabel: document.getElementById('viewer-cpl-label'),
-      viewerCplPresets: document.getElementById('viewer-cpl-presets'),
       startViewerBtn: document.getElementById('start-viewer-btn'),
-      viewerSlideNameInput: document.getElementById('viewer-slide-name'),
+      viewerFileSelect: document.getElementById('viewer-file-select'),
       viewerSlideContainer: document.getElementById('viewer-slide-container'),
       viewerPrevArrow: document.getElementById('viewer-prev-arrow'),
       viewerNextArrow: document.getElementById('viewer-next-arrow'),
       viewerBackBtn: document.getElementById('viewer-back-btn'),
       viewerStartScreen: document.getElementById('viewer-start-screen'),
       viewerSlideScreen: document.getElementById('viewer-slide-screen'),
-      copyDeckTextBtn: document.getElementById('copy-deck-text-btn'),
+      exportJsonBtn: document.getElementById('export-json-btn'),
     };
 
     const debounce = (fn, ms=400) => { let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; };
@@ -280,7 +273,7 @@
       });
     }
 
-    // 画像URL正規化（Drive/Photos対応）
+    // Google Drive URL処理
     function normalizeImageUrl(raw) {
       if (!raw) return { url: "", ok: false, reason: "empty" };
       const url = String(raw).trim();
@@ -290,105 +283,36 @@
       m = url.match(/https?:\/\/drive\.google\.com\/open\?id=([^&]+)/); if (m && m[1]) return { url: `https://drive.google.com/uc?export=view&id=${m[1]}`, ok: true };
       m = url.match(/https?:\/\/drive\.google\.com\/uc\?(?:[^#]*&)?id=([^&]+)/); if (m && m[1]) return { url: `https://drive.google.com/uc?export=view&id=${m[1]}`, ok: true };
       if (/^https?:\/\/lh3\.googleusercontent\.com\/[A-Za-z0-9_\-]/.test(url)) { if (!/[?=]/.test(url)) return { url: url + "=w1600", ok: true }; return { url, ok: true }; }
-      if (/^https?:\/\/photos\.fife\.usercontent\.google\.com\//.test(url)) { const replaced = url.replace(/\/s\d+(-no)?/i, "/s1600-no"); return { url: replaced, ok: true, warning: "fife_unstable" }; }
       if (/^https?:\/\//.test(url)) return { url, ok: true };
       return { url: "", ok: false, reason: "invalid" };
     }
     function getEmbedSrc(raw) {
-      const { url, ok, reason, warning } = normalizeImageUrl(raw || "");
+      const { url, ok, reason } = normalizeImageUrl(raw || "");
       if (!ok) {
-        if (reason === "google_photos_page" || reason === "google_photos_share_link") showNotification("GoogleフォトのURLはそのまま埋め込めません。Driveのリンクにしてください。", "error", 5000);
-        else if (reason === "invalid") showNotification("不正な画像URLです。https:// から始まる形式にしてください。", "error");
+        if(reason==="invalid") showNotification("画像URLが無効です(https://...)", "error");
         return "";
       }
-      if (warning === "fife_unstable") showNotification("Googleフォトの一時リンクを使用中。将来表示できなくなる可能性があります。", "info", 4000);
       return url;
     }
     window.__drvFallback = function(imgEl) {
       try {
         const m = (imgEl?.src || "").match(/\/uc\?export=view&id=([^&]+)/);
         if (m && m[1]) { imgEl.onerror = null; imgEl.src = `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1600`; }
-        else { imgEl.outerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-500">画像表示エラー</div>'; }
-      } catch { imgEl.outerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-500">画像表示エラー</div>'; }
+        else { imgEl.outerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-500 text-xs">画像エラー</div>'; }
+      } catch { imgEl.outerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-500 text-xs">画像エラー</div>'; }
     };
 
     function getEffectiveCpl(slide) {
       const deck = state.viewerSettings?.cpl ?? 25;
-      const ov = (slide && typeof slide.cpl === 'number') ? slide.cpl : null;
-      return (ov ?? deck);
+      return (slide?.cpl ?? deck);
     }
-    function autoSizeViewerText() {
-      const p = dom.viewerSlideContainer.querySelector('.auto-size-text');
+    function autoSizeText(container, slide) {
+      const p = container.querySelector('.auto-size-text');
       if (!p) return;
-      const container = p.parentElement || dom.viewerSlideContainer;
-      const w = (container.clientWidth || 800);
-      const slide = state.viewer.slides[state.viewer.currentSlideIndex] || {};
+      const w = container.clientWidth || 800;
       const cpl = getEffectiveCpl(slide);
       const size = Math.max(state.viewerSettings.minPx, Math.min(state.viewerSettings.maxPx, Math.floor(w / cpl)));
       p.style.fontSize = size + 'px';
-    }
-    function autoSizeEditorText() {
-      const root = dom.editorSlideContainer;
-      const p = root.querySelector('.auto-size-text');
-      if (!p) return;
-      const container = p.parentElement || root;
-      const w = (container.clientWidth || 800);
-      const slide = state.editor.slides[state.editor.currentSlideIndex] || {};
-      const cpl = getEffectiveCpl(slide);
-      const size = Math.max(state.viewerSettings.minPx, Math.min(state.viewerSettings.maxPx, Math.floor(w / cpl)));
-      p.style.fontSize = size + 'px';
-    }
-
-    // 安定キー（互換読み込み用）。保存のIDには使わない
-    function ensureAuthorKey() {
-      let k = (typeof window.__author_key !== 'undefined' && String(window.__author_key).trim()) ? String(window.__author_key).trim() : null;
-      if (!k) k = localStorage.getItem('slide_author_key');
-      if (!k) { k = crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)); localStorage.setItem('slide_author_key', k); }
-      state.userKey = k; dom.userIdDisplay.textContent = k; return k;
-    }
-
-    // Firebase初期化
-    async function initializeFirebase() {
-      try {
-        let firebaseConfig, appId;
-        const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        if (firebaseConfigStr) {
-          firebaseConfig = JSON.parse(firebaseConfigStr);
-          appId = typeof __app_id !== 'undefined' ? String(__app_id) : 'main';
-        } else {
-          console.warn("環境変数なし → デフォルト設定を使います");
-          firebaseConfig = {
-            apiKey: "AIzaSyBCRuejBykUMYlz0aug6YfMtTemccvRElc",
-            authDomain: "slide-t2s.firebaseapp.com",
-            projectId: "slide-t2s",
-            storageBucket: "slide-t2s.appspot.com",
-            messagingSenderId: "712571169987",
-            appId: "1:712571169987:web:4d01a34961dd961d4e4676",
-            measurementId: "G-7LTBNQ37HV"
-          };
-          appId = 'main';
-        }
-        app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
-        setLogLevel('debug');
-
-        // セグメントで固定
-        const segments = ['artifacts', appId, 'public', 'data', 'slides'];
-        slidesCollection = collection(db, ...segments);
-
-        onAuthStateChanged(auth, user => {
-          dom.authStatus.querySelector('p').textContent = 'ステータス: ' + (user ? '認証済み' : '未認証');
-        });
-        if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
-        else await signInAnonymously(auth);
-      } catch (e) {
-        console.error(e);
-        showNotification(`Firebase初期化エラー: ${e.message}`, 'error', 10000);
-        dom.authStatus.innerHTML = `<p class="text-red-500">初期化エラー</p>`;
-        document.querySelectorAll('button, input, textarea').forEach(el => el.disabled = true);
-      }
     }
 
     function render() {
@@ -398,47 +322,35 @@
         dom.tabEditor.classList.add('border-indigo-500','text-indigo-600');
         dom.tabViewer.classList.add('border-transparent','text-gray-500');
         renderEditor();
+        updateSavedFileList();
       } else {
         dom.editorView.classList.add('hidden');
         dom.viewerView.classList.remove('hidden');
         dom.tabViewer.classList.add('border-indigo-500','text-indigo-600');
         dom.tabEditor.classList.add('border-transparent','text-gray-500');
         renderViewer();
+        updateSavedFileList();
       }
     }
 
     function createSlideHTML(slide, isViewer=false){
-      const hasImage = !!(slide.image_url && slide.image_url.trim() !== "");
-      const src = hasImage ? getEmbedSrc(slide.image_url) : "";
+      const src = getEmbedSrc(slide.image_url);
       const textHTML = (slide.text_content || "").replace(/\n/g,'<br>');
       const imgTag = src ? `<img src="${src}" class="max-w-full max-h-full object-contain" alt="" onerror="window.__drvFallback && window.__drvFallback(this)">` : "";
-      if(isViewer){
-        if(src){
-          return `<div class="w-full h-full flex flex-col justify-between bg-white rounded-xl overflow-hidden">
-            <div class="w-full flex-grow flex items-center justify-center overflow-hidden p-4">${imgTag || '<div class="w-full h-full flex items-center justify-center text-gray-500">画像なし</div>'}</div>
-            <div class="w-full p-6 bg-white"><p class="auto-size-text text-center break-words text-gray-800" style="line-height:1.3;">${textHTML}</p></div>
-          </div>`;
-        }else{
-          return `<div class="w-full h-full flex items-center justify-center p-8 bg-white rounded-xl"><p class="auto-size-text text-center break-words text-gray-800" style="line-height:1.3;">${textHTML}</p></div>`;
-        }
-      }else{
-        if(src){
-          return `<div class="w-full h-full flex flex-col justify-between bg-gray-50 rounded-lg overflow-hidden">
-            <div class="w-full flex-grow flex items-center justify-center overflow-hidden p-2">${imgTag || '<div class="text-gray-500">画像表示エラー</div>'}</div>
-            <div class="w-full p-3 bg-white border-t"><p class="auto-size-text text-center break-words text-gray-800" style="line-height:1.3;">${textHTML}</p></div>
-          </div>`;
-        }else{
-          return `<div class="w-full h-full flex items-center justify-center bg-gray-50 rounded-lg border p-4"><p class="auto-size-text text-center break-words text-gray-800" style="line-height:1.3;">${textHTML}</p></div>`;
-        }
-      }
+      const content = src 
+        ? `<div class="w-full h-full flex flex-col justify-between ${isViewer?'bg-white':'bg-gray-50'} rounded-lg overflow-hidden">
+             <div class="w-full flex-grow flex items-center justify-center overflow-hidden p-2">${imgTag}</div>
+             <div class="w-full p-3 bg-white border-t"><p class="auto-size-text text-center break-words text-gray-800" style="line-height:1.3;">${textHTML}</p></div>
+           </div>`
+        : `<div class="w-full h-full flex items-center justify-center ${isViewer?'bg-white':'bg-gray-50 border'} rounded-lg p-4"><p class="auto-size-text text-center break-words text-gray-800" style="line-height:1.3;">${textHTML}</p></div>`;
+      return content;
     }
 
     function renderEditor(){
-      const { slides, currentSlideIndex, slideName, loadedDocId } = state.editor;
+      const { slides, currentSlideIndex, slideName } = state.editor;
       dom.slideNameInput.value = slideName;
-      dom.deckCplInline.textContent = state.viewerSettings.cpl;
       if(slides.length===0 || currentSlideIndex===-1){
-        dom.editorSlideContainer.innerHTML = `<p class="text-gray-500">スライドがありません。JSONをインポートするか、新しいスライドを追加してください。</p>`;
+        dom.editorSlideContainer.innerHTML = `<p class="text-gray-500 text-sm">スライドなし</p>`;
         document.getElementById('slide-edit-form')?.classList.add('hidden');
       }else{
         const slide = slides[currentSlideIndex];
@@ -447,9 +359,9 @@
         dom.textContentInput.value = slide.text_content || "";
         dom.imageUrlInput.value = slide.image_url || "";
         dom.slideCplDisplay.textContent = String(getEffectiveCpl(slide));
+        autoSizeText(dom.editorSlideContainer, slide);
       }
-      dom.deleteSlideContainer.classList.toggle('hidden', !loadedDocId);
-      renderReorderList(); autoSizeEditorText();
+      renderReorderList();
     }
 
     function renderViewer(){
@@ -462,7 +374,7 @@
         dom.viewerSlideScreen.classList.remove('hidden');
         const slide = slides[currentSlideIndex];
         dom.viewerSlideContainer.innerHTML = createSlideHTML(slide, true);
-        autoSizeViewerText();
+        autoSizeText(dom.viewerSlideContainer, slide);
       }
     }
 
@@ -473,267 +385,204 @@
         const li = document.createElement('li');
         li.className = `sortable-item flex items-center justify-between gap-3 px-3 py-2 bg-white ${(i===currentSlideIndex)?'bg-indigo-50':''}`;
         li.setAttribute('draggable','true'); li.dataset.index=String(i);
-        const label = document.createElement('div');
-        label.className='flex items-center gap-2 min-w-0';
-        label.innerHTML = `<span class="cursor-grab select-none text-gray-400">≡</span><span class="text-xs text-gray-500 shrink-0">${i+1}</span><span class="text-sm text-gray-800 truncate">${(s.text_content||'').replace(/\n/g,' ').slice(0,40) || '（無題）'}</span>`;
-        const btns = document.createElement('div');
-        btns.className='shrink-0 flex items-center gap-1';
-        btns.innerHTML = `<button class="btn-up text-gray-600 hover:text-gray-800 px-2 py-1 text-xs border border-gray-200 rounded">▲</button><button class="btn-down text-gray-600 hover:text-gray-800 px-2 py-1 text-xs border border-gray-200 rounded">▼</button><button class="btn-jump text-gray-600 hover:text-gray-800 px-2 py-1 text-xs border border-gray-200 rounded">移動</button><button class="btn-delete text-red-600 hover:text-red-800 px-2 py-1 text-xs border border-red-200 rounded">削除</button>`;
-        li.appendChild(label); li.appendChild(btns); ul.appendChild(li);
-        btns.querySelector('.btn-up').addEventListener('click',()=>moveSlide(i, Math.max(0,i-1)));
-        btns.querySelector('.btn-down').addEventListener('click',()=>moveSlide(i, Math.min(slides.length-1,i+1)));
-        btns.querySelector('.btn-jump').addEventListener('click',()=>{const toStr=prompt(`スライド ${i+1} を何番目に移動しますか？(1-${slides.length})`, String(i+1)); const to=Number(toStr)-1; if(!Number.isNaN(to)&&to>=0&&to<slides.length) moveSlide(i,to);});
-        btns.querySelector('.btn-delete').addEventListener('click', async ()=>{const ok=await showConfirm(`スライド ${i+1} を削除します。よろしいですか？`); if(ok) deleteSlideAt(i);});
+        li.innerHTML = `
+          <div class="flex items-center gap-2 min-w-0" onclick="changeSlide(${i})">
+            <span class="cursor-grab select-none text-gray-400">≡</span>
+            <span class="text-xs text-gray-500 shrink-0">${i+1}</span>
+            <span class="text-sm text-gray-800 truncate">${(s.text_content||'').replace(/\n/g,' ').slice(0,15) || '(無題)'}</span>
+          </div>
+          <div class="shrink-0 flex items-center gap-1">
+             <button onclick="moveSlide(${i},${Math.max(0,i-1)})" class="text-gray-600 px-2 py-1 text-xs border rounded hover:bg-gray-100">▲</button>
+             <button onclick="moveSlide(${i},${Math.min(slides.length-1,i+1)})" class="text-gray-600 px-2 py-1 text-xs border rounded hover:bg-gray-100">▼</button>
+          </div>`;
+        ul.appendChild(li);
+        // D&D Logic
         li.addEventListener('dragstart',e=>{li.classList.add('dragging'); e.dataTransfer?.setData('text/plain',String(i))});
         li.addEventListener('dragend',()=>li.classList.remove('dragging'));
         li.addEventListener('dragover',e=>{e.preventDefault(); li.classList.add('drop-target')});
         li.addEventListener('dragleave',()=>li.classList.remove('drop-target'));
         li.addEventListener('drop',e=>{e.preventDefault(); li.classList.remove('drop-target'); const from=Number(e.dataTransfer?.getData('text/plain')); const to=Number(li.dataset.index); if(!Number.isNaN(from)&&!Number.isNaN(to)) moveSlide(from,to);});
-        label.addEventListener('click',()=>{state.editor.currentSlideIndex=i; renderEditor();});
       });
     }
 
-    function moveSlide(from,to){
+    // グローバル関数化（HTML内onclick用）
+    window.changeSlide = (i) => { state.editor.currentSlideIndex=i; renderEditor(); };
+    window.moveSlide = (from,to) => {
       const arr = state.editor.slides; if(from===to||from<0||to<0||from>=arr.length||to>=arr.length) return;
       const [moved]=arr.splice(from,1); arr.splice(to,0,moved);
-      const cur=state.editor.currentSlideIndex;
-      if(cur===from) state.editor.currentSlideIndex=to; else if(from<cur&&to>=cur) state.editor.currentSlideIndex=cur-1; else if(from>cur&&to<=cur) state.editor.currentSlideIndex=cur+1;
-      renderEditor(); showNotification(`スライド ${from+1} → ${to+1} に移動しました。`,'success'); backupToLocalStorage();
-    }
-    function deleteSlideAt(index){
-      const arr=state.editor.slides; if(index<0||index>=arr.length) return;
-      arr.splice(index,1);
-      if(arr.length===0) state.editor.currentSlideIndex=-1; else if(state.editor.currentSlideIndex>=arr.length) state.editor.currentSlideIndex=arr.length-1;
-      renderEditor(); showNotification(`スライド ${index+1} を削除しました。`,'success'); backupToLocalStorage();
-    }
+      if(state.editor.currentSlideIndex===from) state.editor.currentSlideIndex=to;
+      renderEditor();
+    };
+
     function addSlide(){
       const cur=state.editor.currentSlideIndex; const pos=(cur>=0)?cur+1:0;
       state.editor.slides.splice(pos,0,{text_content:"（新しいスライド）", image_url:""});
-      state.editor.currentSlideIndex=pos; renderEditor(); showNotification("新しいスライドを追加しました。",'success'); backupToLocalStorage();
+      state.editor.currentSlideIndex=pos; renderEditor(); showNotification("スライド追加",'success');
     }
     async function removeCurrentSlide(){
-      const i=state.editor.currentSlideIndex; if(i<0||state.editor.slides.length===0){showNotification("削除できるスライドがありません。",'error'); return;}
-      const ok=await showConfirm(`スライド ${i+1} を削除します。よろしいですか？`); if(!ok) return; deleteSlideAt(i);
+      const i=state.editor.currentSlideIndex; if(i<0||state.editor.slides.length===0) return;
+      if(!(await showConfirm("削除しますか？"))) return;
+      state.editor.slides.splice(i,1);
+      if(state.editor.slides.length===0) state.editor.currentSlideIndex=-1; else if(state.editor.currentSlideIndex>=state.editor.slides.length) state.editor.currentSlideIndex=state.editor.slides.length-1;
+      renderEditor(); showNotification("削除しました",'success');
     }
-
-    function handleModeChange(newMode){ state.mode=newMode; render(); }
-    function handleEditorNav(dir){ const {slides}=state.editor; const ni=state.editor.currentSlideIndex+dir; if(ni>=0 && ni<slides.length){ state.editor.currentSlideIndex=ni; renderEditor(); } }
 
     function handleImportJson(){
       try{
-        let jsonText = dom.jsonInput.value.trim(); if(!jsonText){ showNotification('JSONデータが空です。','error'); return; }
+        let jsonText = dom.jsonInput.value.trim(); if(!jsonText){ showNotification('データが空です','error'); return; }
         jsonText = jsonText.replace(/,(?=\s*[}\]])/g,'');
-        const slidesData = JSON.parse(jsonText); if(!Array.isArray(slidesData)) throw new Error("配列形式である必要があります。");
-        state.editor.slides = slidesData.map(s=>{
-          const text = s.text_content || s.text || s.content || s.文章 || s.テキスト || "";
-          const raw  = s.image_url || s.imageUrl || s.image || s.画像URL || s.画像 || "";
-          const normalized = getEmbedSrc(String(raw));
-          const cpl = (typeof s.cpl === 'number') ? s.cpl : undefined;
-          return { text_content:String(text), image_url: normalized || String(raw), ...(typeof cpl==='number'?{cpl}:{}) };
-        });
-        state.editor.currentSlideIndex = state.editor.slides.length>0 ? 0 : -1; state.editor.slideName=''; state.editor.loadedDocId=null;
-        showNotification(`${state.editor.slides.length} 件のスライドを読み込みました。`,'success'); renderEditor(); backupToLocalStorage();
-      }catch(e){ showNotification(`JSON解析エラー: ${e.message}`,'error'); }
+        const slidesData = JSON.parse(jsonText); if(!Array.isArray(slidesData)) throw new Error("配列形式ではありません");
+        state.editor.slides = slidesData.map(s=>({ 
+          text_content:String(s.text_content||s.text||""), 
+          image_url: String(s.image_url||s.image||""), 
+          ...(typeof s.cpl==='number'?{cpl:s.cpl}:{}) 
+        }));
+        state.editor.currentSlideIndex = state.editor.slides.length>0 ? 0 : -1;
+        state.editor.slideName='';
+        showNotification("読み込み成功！",'success'); renderEditor();
+      }catch(e){ showNotification("読み込みエラー: "+e.message,'error'); }
     }
 
-    // ====== 新ID設計：DocID = slideName（文字列そのもの） ======
-    function buildDocId(slideName){ return String(slideName); }
-
-    // 旧互換: userKey::slideName でも探す（読み込み時のみ）
-    async function getByEitherId(slideName){
-      const idNew = buildDocId(slideName);
-      const refNew = doc(slidesCollection, idNew);
-      const snapNew = await getDoc(refNew);
-      if (snapNew.exists() && !snapNew.data().deleted) return { ref: refNew, snap: snapNew, idType: 'new' };
-
-      // legacy
-      const legacyId = `${state.userKey}::${slideName}`;
-      const refOld = doc(slidesCollection, legacyId);
-      const snapOld = await getDoc(refOld);
-      if (snapOld.exists() && !snapOld.data().deleted) return { ref: refOld, snap: snapOld, idType: 'legacy' };
-
-      return null;
+    // --- Local Storage & Transfer ---
+    function getSavedList() {
+      const list = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith(STORAGE_KEY_PREFIX)) list.push(key.replace(STORAGE_KEY_PREFIX, ''));
+      }
+      return list.sort();
+    }
+    function updateSavedFileList() {
+      const list = getSavedList();
+      const createOpts = () => list.map(name => `<option value="${name}">${name}</option>`).join('');
+      dom.savedFilesSelect.innerHTML = `<option value="">選択してください...</option>` + createOpts();
+      dom.viewerFileSelect.innerHTML = `<option value="">選択してください...</option>` + createOpts();
     }
 
-    async function handleSaveSlides(){
-      const slideName = dom.slideNameInput.value.trim(); if(!slideName){ showNotification("スライド名を入力してください。",'error'); return; }
-      if(state.editor.slides.length===0){ showNotification("保存するスライドがありません。",'error'); return; }
+    function handleSaveSlides(){
+      const nm = dom.slideNameInput.value.trim(); 
+      if(!nm){ showNotification("名前を入力してください",'error'); return; }
+      if(state.editor.slides.length===0) return;
+      const dataToSave = { slideName: nm, slides: state.editor.slides, viewerSettings: state.viewerSettings, updatedAt: new Date().toISOString() };
+      try {
+        localStorage.setItem(STORAGE_KEY_PREFIX + nm, JSON.stringify(dataToSave));
+        state.editor.slideName = nm;
+        showNotification(`「${nm}」を保存しました`,'success'); updateSavedFileList();
+      } catch(e) { showNotification("容量オーバー等で保存できませんでした",'error'); }
+    }
 
-      const slidesToSave = state.editor.slides.map(s=>{ const normalized = getEmbedSrc(s.image_url || ""); return { text_content:s.text_content || "", image_url: normalized || "", ...(typeof s.cpl==='number'?{cpl:s.cpl}:{}) };});
-      const dataToSave = { slideName, slides: slidesToSave, authorKey: state.userKey, viewerSettings: state.viewerSettings, updatedAt: new Date().toISOString(), deleted:false };
-      if(!state.editor.loadedDocId) dataToSave.createdAt = new Date().toISOString();
-
+    function handleLoadSlides(){
+      const nm = dom.savedFilesSelect.value || dom.slideNameInput.value.trim();
+      if(!nm) return;
+      const raw = localStorage.getItem(STORAGE_KEY_PREFIX + nm);
+      if(!raw) { showNotification("見つかりません",'error'); return; }
       try{
-        dom.saveSlidesBtn.disabled=true; dom.saveSlidesBtn.textContent="保存中...";
-        const id = buildDocId(slideName);
-        const ref = doc(slidesCollection, id);
-        await setDoc(ref, dataToSave, { merge:true }); // 新IDにアップサート
-        state.editor.loadedDocId = ref.id; state.editor.slideName = slideName;
-        showNotification("スライドを保存しました（名前固定ID）。",'success'); backupToLocalStorage();
-      }catch(e){ console.error(e); showNotification("スライドの保存に失敗しました。",'error'); }
-      finally{ dom.saveSlidesBtn.disabled=false; dom.saveSlidesBtn.textContent="保存"; renderEditor(); }
+        const data = JSON.parse(raw);
+        state.editor.slides = data.slides || [];
+        state.editor.currentSlideIndex = state.editor.slides.length>0 ? 0 : -1;
+        state.editor.slideName = data.slideName || nm;
+        state.viewerSettings = data.viewerSettings || { cpl:25, minPx:18, maxPx:56 };
+        dom.viewerCplRange.value = String(state.viewerSettings.cpl); 
+        dom.viewerCplLabel.textContent = String(state.viewerSettings.cpl);
+        dom.slideNameInput.value = data.slideName || nm;
+        showNotification("ロードしました",'success'); renderEditor();
+      }catch(e){ showNotification("読込失敗",'error'); }
     }
 
-    async function handleLoadSlides(){
-      const nm = dom.slideNameInput.value.trim(); if(!nm){ showNotification("ロードする名前を入力してください。",'error'); return false; }
-      try{
-        dom.loadSlidesBtn.disabled=true; dom.loadSlidesBtn.textContent="ロード中...";
-        const hit = await getByEitherId(nm);
-        if(hit){
-          const data = hit.snap.data();
-          state.editor.slides = (data.slides||[]).map(s=>({ text_content:s.text_content||"", image_url:s.image_url||"", ...(typeof s.cpl==='number'?{cpl:s.cpl}:{}) }));
-          state.editor.currentSlideIndex = state.editor.slides.length>0 ? 0 : -1;
-          state.editor.slideName = data.slideName; state.editor.loadedDocId = buildDocId(nm); // 以後は新IDで扱う
-          state.viewerSettings = data.viewerSettings || { cpl:25, minPx:18, maxPx:56 };
-          dom.viewerCplRange.value = String(state.viewerSettings.cpl); dom.viewerCplLabel.textContent = String(state.viewerSettings.cpl); dom.deckCplInline.textContent = state.viewerSettings.cpl;
-          dom.jsonInput.value = "";
-          // 旧IDから読んだ場合でも、この時点で新IDへ自動マイグレーション（上書き保存）
-          if (hit.idType === 'legacy') {
-            try { await setDoc(doc(slidesCollection, buildDocId(nm)), data, { merge:true }); } catch(_) {}
-          }
-          showNotification(`スライド「${data.slideName}」をロードしました。`,'success'); backupToLocalStorage();
-          return true;
-        }else{
-          showNotification(`「${nm}」が見つかりませんでした。`,'error'); return false;
-        }
-      }catch(e){ console.error(e); showNotification("スライドのロードに失敗しました。",'error'); return false; }
-      finally{ dom.loadSlidesBtn.disabled=false; dom.loadSlidesBtn.textContent="ロード"; renderEditor(); }
+    async function handleDeleteLocal() {
+      const nm = dom.savedFilesSelect.value;
+      if(!nm) return;
+      if(!(await showConfirm(`「${nm}」を削除しますか？`))) return;
+      localStorage.removeItem(STORAGE_KEY_PREFIX + nm);
+      showNotification("削除しました",'success'); updateSavedFileList();
     }
 
-    async function handleStartViewer(){
-      const nm = dom.viewerSlideNameInput.value.trim(); if(!nm){ showNotification("スライド名を入力してください。",'error'); return; }
-      try{
-        dom.startViewerBtn.disabled=true; dom.startViewerBtn.textContent="検索中...";
-        const hit = await getByEitherId(nm);
-        if(hit){
-          const data = hit.snap.data();
-          state.viewer.slides = (data.slides||[]).map(s=>({ text_content:s.text_content||"", image_url:s.image_url||"", ...(typeof s.cpl==='number'?{cpl:s.cpl}:{}) }));
-          state.viewer.currentSlideIndex = state.viewer.slides.length>0 ? 0 : -1;
-          state.viewer.slideName = data.slideName; state.viewerSettings = data.viewerSettings || { cpl:25, minPx:18, maxPx:56 };
-          // 旧ID読み込み時はついでに新IDへ反映
-          if (hit.idType === 'legacy') {
-            try { await setDoc(doc(slidesCollection, buildDocId(nm)), data, { merge:true }); } catch(_) {}
-          }
-        }else{ showNotification("スライドが見つかりませんでした。",'error'); state.viewer.slides=[]; }
-      }catch(e){ showNotification("読み込みに失敗しました。",'error'); }
-      finally{ dom.startViewerBtn.disabled=false; dom.startViewerBtn.textContent="スライドを見る"; renderViewer(); }
+    // --- Export Logic ---
+    async function handleExportJson() {
+      if(state.editor.slides.length === 0) { showNotification("データがありません", "error"); return; }
+      const data = JSON.stringify(state.editor.slides, null, 2);
+      try{ 
+        await navigator.clipboard.writeText(data); 
+        showNotification("コピーしました！iPadに送ってください。", "success");
+      }catch(_){
+        // Fallback for older browsers
+        dom.jsonInput.value = data;
+        dom.jsonInput.select();
+        document.execCommand("copy");
+        showNotification("入力欄にテキストを表示しました。コピーしてください。", "info");
+      }
+    }
+
+    function handleStartViewer(){
+      const nm = dom.viewerFileSelect.value;
+      if(!nm){ showNotification("選択してください",'error'); return; }
+      const raw = localStorage.getItem(STORAGE_KEY_PREFIX + nm);
+      if(!raw) return;
+      const data = JSON.parse(raw);
+      state.viewer.slides = data.slides;
+      state.viewer.currentSlideIndex = 0;
+      state.viewer.slideName = data.slideName; 
+      state.viewerSettings = data.viewerSettings || { cpl:25, minPx:18, maxPx:56 };
+      renderViewer();
     }
 
     function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
-    function setupViewerSizeControls(){
-      dom.viewerCplPresets?.addEventListener('click',(e)=>{
-        const btn=e.target.closest('button[data-cpl]'); if(!btn) return;
-        [...dom.viewerCplPresets.querySelectorAll('button')].forEach(b=>b.classList.remove('bg-indigo-50','text-indigo-700','font-semibold'));
-        btn.classList.add('bg-indigo-50','text-indigo-700','font-semibold');
-        const v=Number(btn.dataset.cpl); state.viewerSettings.cpl = clamp(v, CPL_MIN, CPL_MAX);
-        dom.viewerCplRange.value=String(state.viewerSettings.cpl); dom.viewerCplLabel.textContent=String(state.viewerSettings.cpl); dom.deckCplInline.textContent=state.viewerSettings.cpl;
-        if(!dom.viewerView.classList.contains('hidden')) autoSizeViewerText(); renderEditor();
-      });
-      dom.viewerCplRange?.addEventListener('input',()=>{
-        const v=Number(dom.viewerCplRange.value); state.viewerSettings.cpl = clamp(v, CPL_MIN, CPL_MAX);
-        dom.viewerCplLabel.textContent=String(state.viewerSettings.cpl); dom.deckCplInline.textContent=state.viewerSettings.cpl;
-        if(!dom.viewerView.classList.contains('hidden')) autoSizeViewerText(); renderEditor();
-      });
-    }
-    function setupPerSlideSizeControls(){
-      dom.slideCplUp.addEventListener('click',()=>{ const i=state.editor.currentSlideIndex; if(i<0) return; const s=state.editor.slides[i]; const base=getEffectiveCpl(s); s.cpl=clamp((typeof s.cpl==='number'?s.cpl:base)-1, CPL_MIN, CPL_MAX); renderEditor(); backupToLocalStorage(); });
-      dom.slideCplDown.addEventListener('click',()=>{ const i=state.editor.currentSlideIndex; if(i<0) return; const s=state.editor.slides[i]; const base=getEffectiveCpl(s); s.cpl=clamp((typeof s.cpl==='number'?s.cpl:base)+1, CPL_MIN, CPL_MAX); renderEditor(); backupToLocalStorage(); });
-      dom.slideCplReset.addEventListener('click',()=>{ const i=state.editor.currentSlideIndex; if(i<0) return; const s=state.editor.slides[i]; delete s.cpl; renderEditor(); backupToLocalStorage(); });
-    }
-
-    function buildDeckPlainText(){
-      const slides = (state.editor.slides && state.editor.slides.length) ? state.editor.slides : state.viewer.slides;
-      const name = (state.editor.slides && state.editor.slides.length) ? (state.editor.slideName || "") : (state.viewer.slideName || "");
-      if(!slides || !slides.length) return null;
-      const lines=[]; lines.push(`デッキ: ${name || "（未命名）"}`);
-      for(let i=0;i<slides.length;i++){ const s=slides[i]||{}; const body=(s.text_content||"").trim(); lines.push(`--- Slide ${i+1} ---`); lines.push(body.length?body:"(本文なし)"); }
-      return lines.join("\n");
-    }
-    async function copyTextToClipboard(text){
-      try{ if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); return true; } }catch(_){}
-      try{ const ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.left="-9999px"; document.body.appendChild(ta); ta.select(); const ok=document.execCommand("copy"); document.body.removeChild(ta); return ok; }catch(_){ return false; }
-    }
-
-    // ローカル自動バックアップ（保険）
-    function backupKey(){ const nm = state.editor.slideName || dom.slideNameInput.value.trim() || '(untitled)'; return `slides-backup:${state.userKey}:${nm}`; }
-    const backupToLocalStorage = debounce(()=>{
-      const nm = state.editor.slideName || dom.slideNameInput.value.trim() || '(untitled)';
-      const payload = { slideName:nm, slides:state.editor.slides, viewerSettings:state.viewerSettings, updatedAt:new Date().toISOString() };
-      localStorage.setItem(backupKey(), JSON.stringify(payload));
-    },300);
-    function tryRestoreBackup(){
-      const nm = dom.slideNameInput.value.trim(); if(!nm) return false;
-      const raw = localStorage.getItem(`slides-backup:${state.userKey}:${nm}`); if(!raw) return false;
-      try{
-        const data = JSON.parse(raw); if(!data || !Array.isArray(data.slides)) return false;
-        state.editor.slides=data.slides; state.editor.currentSlideIndex=state.editor.slides.length>0?0:-1; state.editor.slideName=data.slideName || nm; state.editor.loadedDocId=null;
-        state.viewerSettings=data.viewerSettings || state.viewerSettings; renderEditor(); showNotification('ローカルバックアップから復元しました。','success'); return true;
-      }catch{ return false; }
-    }
-
     function setupEventListeners(){
-      dom.tabEditor.addEventListener('click',()=>handleModeChange('editor'));
-      dom.tabViewer.addEventListener('click',()=>handleModeChange('viewer'));
+      dom.tabEditor.addEventListener('click',()=>state.mode='editor'||render());
+      dom.tabViewer.addEventListener('click',()=>state.mode='viewer'||render());
 
       dom.importJsonBtn.addEventListener('click',handleImportJson);
-      dom.textContentInput.addEventListener('input',()=>{ handleSlideUpdate(); backupToLocalStorage(); });
-      dom.imageUrlInput.addEventListener('input',()=>{ handleSlideUpdate(); backupToLocalStorage(); });
+      dom.textContentInput.addEventListener('input',()=>{ 
+        if(state.editor.currentSlideIndex>=0) state.editor.slides[state.editor.currentSlideIndex].text_content = dom.textContentInput.value;
+        renderEditor();
+      });
+      dom.imageUrlInput.addEventListener('input',()=>{ 
+        if(state.editor.currentSlideIndex>=0) state.editor.slides[state.editor.currentSlideIndex].image_url = dom.imageUrlInput.value;
+        renderEditor();
+      });
 
-      dom.editorPrevArrow.addEventListener('click',()=>handleEditorNav(-1));
-      dom.editorNextArrow.addEventListener('click',()=>handleEditorNav(1));
+      dom.editorPrevArrow.addEventListener('click',()=>moveSlide(state.editor.currentSlideIndex, state.editor.currentSlideIndex-1));
+      dom.editorNextArrow.addEventListener('click',()=>moveSlide(state.editor.currentSlideIndex, state.editor.currentSlideIndex+1));
 
       dom.saveSlidesBtn.addEventListener('click',handleSaveSlides);
-      dom.loadSlidesBtn.addEventListener('click', async ()=>{ const ok = await handleLoadSlides(); if(!ok) tryRestoreBackup(); });
-
-      dom.deleteSlideLink.addEventListener('click', async ()=>{
-        const ok = await showConfirm("このスライド（ドキュメント）をゴミ箱に移動しますか？（あとで復元できます）"); if(!ok) return;
-        try{
-          if(state.editor.loadedDocId){
-            await updateDoc(doc(slidesCollection, state.editor.loadedDocId), { deleted:true, deletedAt:new Date().toISOString() });
-            state.editor.slides=[]; state.editor.currentSlideIndex=-1; state.editor.slideName=''; state.editor.loadedDocId=null; dom.slideNameInput.value='';
-            renderEditor(); showNotification("スライドをゴミ箱に移動しました。",'success');
-          }
-        }catch(e){ console.error(e); showNotification("削除に失敗しました。",'error'); }
-      });
-
+      dom.loadSlidesBtn.addEventListener('click',handleLoadSlides);
+      dom.deleteLocalBtn.addEventListener('click', handleDeleteLocal);
       dom.addSlideBtn.addEventListener('click',addSlide);
       dom.removeSlideBtn.addEventListener('click',removeCurrentSlide);
+      dom.exportJsonBtn.addEventListener('click', handleExportJson);
 
       dom.startViewerBtn.addEventListener('click',handleStartViewer);
-      dom.viewerPrevArrow.addEventListener('click',()=>handleViewerNav(-1));
-      dom.viewerNextArrow.addEventListener('click',()=>handleViewerNav(1));
-      dom.viewerBackBtn.addEventListener('click',handleViewerBack);
+      dom.viewerPrevArrow.addEventListener('click',()=>{
+        const ni=state.viewer.currentSlideIndex-1; if(ni>=0) { state.viewer.currentSlideIndex=ni; renderViewer(); }
+      });
+      dom.viewerNextArrow.addEventListener('click',()=>{
+        const ni=state.viewer.currentSlideIndex+1; if(ni<state.viewer.slides.length) { state.viewer.currentSlideIndex=ni; renderViewer(); }
+      });
+      dom.viewerBackBtn.addEventListener('click',()=> { state.viewer.slides=[]; renderViewer(); });
 
-      window.addEventListener('resize',()=>{ if(!dom.viewerView.classList.contains('hidden')) autoSizeViewerText(); if(!dom.editorView.classList.contains('hidden')) autoSizeEditorText(); });
-
-      setupViewerSizeControls(); setupPerSlideSizeControls();
-
-      dom.copyDeckTextBtn.addEventListener('click', async ()=>{
-        const text = buildDeckPlainText(); if(!text){ showNotification("コピーできるスライドがありません。","error"); return; }
-        const ok = await copyTextToClipboard(text); showNotification(ok?"デッキのテキストをコピーしました。":"コピーに失敗しました。", ok?"success":"error");
+      // 文字サイズ
+      dom.viewerCplRange.addEventListener('input',()=>{
+        state.viewerSettings.cpl = Number(dom.viewerCplRange.value);
+        dom.viewerCplLabel.textContent = state.viewerSettings.cpl;
+        if(state.mode==='editor') renderEditor(); else renderViewer();
+      });
+      dom.slideCplUp.addEventListener('click',()=>{ 
+        const s=state.editor.slides[state.editor.currentSlideIndex]; if(!s) return;
+        s.cpl = clamp(getEffectiveCpl(s)-1, CPL_MIN, CPL_MAX); renderEditor();
+      });
+      dom.slideCplDown.addEventListener('click',()=>{ 
+        const s=state.editor.slides[state.editor.currentSlideIndex]; if(!s) return;
+        s.cpl = clamp(getEffectiveCpl(s)+1, CPL_MIN, CPL_MAX); renderEditor();
+      });
+      dom.slideCplReset.addEventListener('click',()=>{ 
+        const s=state.editor.slides[state.editor.currentSlideIndex]; if(!s) return;
+        delete s.cpl; renderEditor();
       });
 
-      // ショートカット
-      window.addEventListener('keydown',(e)=>{
-        if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); handleSaveSlides(); }
-        if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='l'){ e.preventDefault(); handleLoadSlides(); }
-      });
+      window.addEventListener('resize',()=>{ if(state.mode==='viewer') renderViewer(); else renderEditor(); });
     }
 
-    function handleSlideUpdate(){
-      const { slides, currentSlideIndex } = state.editor;
-      if(currentSlideIndex!==-1){
-        slides[currentSlideIndex].text_content = dom.textContentInput.value;
-        slides[currentSlideIndex].image_url   = dom.imageUrlInput.value;
-        dom.editorSlideContainer.innerHTML = createSlideHTML(slides[currentSlideIndex], false);
-        renderReorderList(); autoSizeEditorText();
-      }
-    }
-    function handleViewerNav(dir){ const {slides}=state.viewer; const ni=state.viewer.currentSlideIndex+dir; if(ni>=0 && ni<slides.length){ state.viewer.currentSlideIndex=ni; renderViewer(); } }
-    function handleViewerBack(){ state.viewer.slides=[]; state.viewer.currentSlideIndex=-1; state.viewer.slideName=''; dom.viewerSlideNameInput.value=''; renderViewer(); }
-
-    async function main(){ ensureAuthorKey(); setupEventListeners(); await initializeFirebase(); render(); }
-    main();
+    setupEventListeners(); updateSavedFileList(); render();
   </script>
 </body>
 </html>
